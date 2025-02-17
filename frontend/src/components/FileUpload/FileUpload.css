@@ -1,0 +1,52 @@
+.file-upload-container {
+  width: 50%;
+  margin: auto;
+  text-align: center;
+}
+
+input {
+  padding: 8px;
+  margin: 5px;
+}
+
+button {
+  padding: 8px;
+  margin: 5px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: grey;
+  cursor: not-allowed;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+ul li {
+  background: #f0f0f0;
+  padding: 10px;
+  margin: 5px;
+  cursor: pointer;
+}
+
+ul li:hover {
+  background: #ddd;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+th, td {
+  border: 1px solid black;
+  padding: 8px;
+}
+
+th {
+  background: #f4f4f4;
+}
