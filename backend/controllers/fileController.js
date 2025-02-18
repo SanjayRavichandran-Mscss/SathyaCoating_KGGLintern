@@ -13,6 +13,7 @@ const createProjectsTable = async () => {
     );
   `;
   await db.execute(createTableQuery);
+  console.log("Projects table ensured to exist");
 };
 
 // Function to create the `sheets` table dynamically if it does not exist
@@ -27,15 +28,16 @@ const createSheetsTable = async () => {
     );
   `;
   await db.execute(createTableQuery);
+  console.log("Sheets table ensured to exist");
 };
 
 // Create a new project
 exports.createProject = async (req, res) => {
   try {
+    console.log("Creating a new project...");
     await createProjectsTable(); // Ensure `projects` table exists
 
     const { project_name } = req.body;
-
     if (!project_name) {
       return res.status(400).json({ message: "Project name is required" });
     }
@@ -43,6 +45,7 @@ exports.createProject = async (req, res) => {
     // Insert new project if it doesn't already exist
     const insertQuery = `INSERT INTO projects (project_name) VALUES (?);`;
     await db.execute(insertQuery, [project_name]);
+    console.log(`Project '${project_name}' created successfully`);
 
     res.json({ message: "Project created successfully" });
   } catch (error) {
@@ -54,9 +57,11 @@ exports.createProject = async (req, res) => {
 // Get all projects
 exports.getProjects = async (req, res) => {
   try {
+    console.log("Fetching all projects...");
     await createProjectsTable(); // Ensure `projects` table exists
 
     const [projects] = await db.execute("SELECT * FROM projects;");
+    console.log("Projects fetched successfully:", projects);
     res.json(projects);
   } catch (error) {
     console.error("Error fetching projects:", error);
@@ -67,12 +72,12 @@ exports.getProjects = async (req, res) => {
 // Upload file and store sheets with `projectId`
 exports.uploadFile = async (req, res) => {
   try {
+    console.log("Uploading file...");
     if (!req.files || !req.files.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
     const { projectId } = req.params;
-
     if (!projectId) {
       return res.status(400).json({ message: "Project ID is required" });
     }
@@ -82,13 +87,36 @@ exports.uploadFile = async (req, res) => {
 
     const file = req.files.file;
     const filePath = path.join(__dirname, "../uploads", file.name);
+    console.log(`File path: ${filePath}`);
 
     await file.mv(filePath); // Move file to uploads folder
+    console.log("File moved to uploads folder");
 
     const workbook = xlsx.readFile(filePath);
     const sheets = workbook.SheetNames;
+    console.log("Sheets found:", sheets);
 
+    // Delete existing sheets for the project from the `sheets` table
+    const deleteSheetsQuery = `DELETE FROM sheets WHERE project_id = ?;`;
+    await db.execute(deleteSheetsQuery, [projectId]);
+    console.log("Existing sheets deleted from database");
+
+    // Drop all tables associated with this project
+    const getAllTablesQuery = `SHOW TABLES;`;
+    const [tables] = await db.execute(getAllTablesQuery);
+
+    for (const table of tables) {
+      const tableName = table[`Tables_in_${process.env.DB_DATABASE}`]; // Adjust for your DB name
+      if (tableName.includes(`_${projectId}_`)) {
+        const dropTableQuery = `DROP TABLE IF EXISTS \`${tableName}\`;`;
+        await db.execute(dropTableQuery);
+        console.log(`Dropped table: ${tableName}`);
+      }
+    }
+
+    // Process the uploaded sheets
     for (const sheetName of sheets) {
+      console.log(`Processing sheet: ${sheetName}`);
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = xlsx.utils.sheet_to_json(worksheet);
 
@@ -107,11 +135,11 @@ exports.uploadFile = async (req, res) => {
           const checkQuery = `SELECT 1 FROM \`${tableName}\` WHERE ${whereClause} LIMIT 1;`;
 
           const [existingRows] = await db.execute(checkQuery, values);
-
           if (existingRows.length === 0) {
             // Insert only if no duplicate exists
             const insertQuery = `INSERT INTO \`${tableName}\` (${columns.map(col => `\`${col}\``).join(", ")}) VALUES (${columns.map(() => "?").join(", ")});`;
             await db.execute(insertQuery, values);
+            console.log(`Inserted new row into table ${tableName}`);
           }
         }
 
@@ -122,6 +150,7 @@ exports.uploadFile = async (req, res) => {
         if (existingSheets.length === 0) {
           const insertSheetQuery = `INSERT INTO sheets (sheet_name, project_id) VALUES (?, ?);`;
           await db.execute(insertSheetQuery, [sheetName, projectId]);
+          console.log(`Inserted sheet name '${sheetName}' into sheets table`);
         }
       }
     }
@@ -133,9 +162,26 @@ exports.uploadFile = async (req, res) => {
   }
 };
 
+// Get all sheets (without filtering by projectId)
+exports.getAllSheets = async (req, res) => {
+  try {
+    console.log("Fetching all sheets...");
+    await createSheetsTable(); // Ensure `sheets` table exists
+
+    const [sheets] = await db.execute("SELECT * FROM sheets;");
+    console.log("All sheets:", sheets);
+    
+    res.json(sheets);
+  } catch (error) {
+    console.error("Error fetching all sheets:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 // Get all sheets by `projectId`
 exports.getSheetsByProject = async (req, res) => {
   try {
+    console.log("Fetching sheets for project...");
     await createSheetsTable(); // Ensure `sheets` table exists
     const { projectId } = req.params;
 
@@ -144,6 +190,7 @@ exports.getSheetsByProject = async (req, res) => {
     }
 
     const [sheets] = await db.execute("SELECT * FROM sheets WHERE project_id = ?;", [projectId]);
+    console.log(`Sheets for project ${projectId}:`, sheets);
     res.json(sheets);
   } catch (error) {
     console.error("Error fetching sheets:", error);
@@ -152,14 +199,12 @@ exports.getSheetsByProject = async (req, res) => {
 };
 
 // Get sheet data by `sheetId`
-// Get sheet data by `sheetId`
 exports.getSheetById = async (req, res) => {
   try {
+    console.log("Fetching sheet data...");
     await createSheetsTable(); // Ensure `sheets` table exists
 
     const { sheetId } = req.params;
-    console.log("sheetId:", sheetId);
-
     if (!sheetId) {
       return res.status(400).json({ message: "Sheet ID is required" });
     }
@@ -172,6 +217,7 @@ exports.getSheetById = async (req, res) => {
     }
 
     const sheetName = sheet[0].sheet_name.replace(/\s+/g, "_").toLowerCase(); // Normalize sheet name
+    console.log(`Fetching data from sheet: ${sheetName}`);
 
     // Fetch all data from the corresponding sheet table, excluding the primary key (id)
     const [data] = await db.execute(`SELECT * FROM \`${sheetName}\`;`);
@@ -186,6 +232,7 @@ exports.getSheetById = async (req, res) => {
       return rest;
     });
 
+    console.log(`Data fetched from sheet ${sheetName}:`, filteredData);
     res.json(filteredData);
   } catch (error) {
     console.error("Error fetching sheet data:", error);

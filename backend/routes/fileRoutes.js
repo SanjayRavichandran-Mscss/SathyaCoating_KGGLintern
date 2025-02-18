@@ -4,8 +4,10 @@ const {
   createProject, 
   getProjects, 
   uploadFile, 
+  getAllSheets, 
   getSheetsByProject, 
-  getSheetById ,
+  getSheetById
+   // Import the new controller function
 } = require("../controllers/fileController");
 
 // Create a new project
@@ -16,6 +18,9 @@ router.get("/projects", getProjects);
 
 // Upload file and associate with `projectId`
 router.post("/upload/:projectId", uploadFile);
+
+// Get all sheets 
+router.get("/sheets", getAllSheets);
 
 // Get all sheets by `projectId`
 router.get("/sheets/:projectId", getSheetsByProject);
