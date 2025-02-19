@@ -8,13 +8,12 @@ const db = require("./config/dbConfig");
 dotenv.config();
 const app = express();
 
-app.use(cors({ origin: "http://localhost:5173", methods: "POST" }));
+app.use(cors({ origin: "http://localhost:5173", methods: ["POST", "GET" ,"PUT" ,"DELETE"] }));
 app.use(express.json());
 app.use(uploadMiddleware);
 
 app.use("/api", fileRoutes);
 
-// Start Server
 db.query("SELECT 1")
   .then(() => {
       console.log("MySQL connected!");
