@@ -7,7 +7,6 @@ const {
   getAllSheets, 
   getSheetsByProject, 
   getSheetById
-   // Import the new controller function
 } = require("../controllers/fileController");
 
 // Create a new project
